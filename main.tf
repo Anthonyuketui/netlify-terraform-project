@@ -1,47 +1,35 @@
+resource "random_id" "suffix" {
+  byte_length = 3
+}
 
-# Pick a random fitness motto
-resource "random_shuffle" "motto" {
+resource "random_shuffle" "fitness_motto" {
   input        = var.mottos
   result_count = 1
 }
 
-# Generate a timestamp for the deploy
-resource "time_static" "deploy" {}
-
-# GitHub repo
-resource "github_repository" "site" {
-  name        = var.repo_name
-  description = "Fitness × DevOps demo site deployed with Terraform + Netlify"
-  visibility  = "public"
-  auto_init   = true
+locals {
+  effective_brand = trimspace(var.brand) != "" ? var.brand : "shredvarsity-${random_id.suffix.hex}"
+  index_html      = templatefile("${path.module}/site/index.html.tmpl", {
+    brand = local.effective_brand
+    motto = random_shuffle.fitness_motto.result[0]
+  })
 }
 
-# Render HTML template
-data "template_file" "index" {
-  template = file("${path.module}/site/index.html.tmpl")
-
-  vars = {
-    brand     = var.brand != "" ? var.brand : "ShredVarsity"
-    motto     = random_shuffle.motto.result[0]
-    timestamp = time_static.deploy.rfc3339
-  }
+resource "github_repository" "site_repo" {
+  name         = var.repo_name
+  description  = "ShredVarsity — Terraform + Netlify demo (state in HCP Terraform)"
+  visibility   = "public"
+  auto_init    = true
+  has_issues   = true
+  has_wiki     = false
+  has_projects = false
 }
 
-# Commit template to repo
-resource "github_repository_file" "index" {
-  repository = github_repository.site.name
-  file       = "index.html"
-  content    = data.template_file.index.rendered
-  branch     = "main"
+resource "github_repository_file" "index_html" {
+  repository      = github_repository.site_repo.name
+  branch          = "main"
+  file            = "index.html"
+  content         = local.index_html
+  commit_message  = "chore: add/update generated index.html"
   overwrite_on_create = true
-}
-
-# Netlify site
-resource "netlify_site" "demo" {
-  name = var.repo_name
-  repo {
-    provider = "github"
-    repo     = github_repository.site.full_name
-    branch   = "main"
-  }
 }
