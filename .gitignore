@@ -1,0 +1,17 @@
+# Terraform local files
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfstate.*
+
+# TF vars and env files (secrets)
+*.tfvars
+.env
+*.env
+
+# IDE / OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
